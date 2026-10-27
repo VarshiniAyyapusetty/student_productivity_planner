@@ -5,6 +5,7 @@ import '../main.dart';
 import '../models/task.dart';
 import '../providers/task_provider.dart';
 import '../providers/study_session_provider.dart';
+import '../services/study_tip_service.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -23,10 +24,12 @@ class _DashboardScreenState extends State<DashboardScreen>
   late final Animation<double> _sessionsStatAnimation;
   late final Animation<double> _tasksSectionAnimation;
   late final Animation<double> _sessionsSectionAnimation;
+  late Future<String> _studyTipFuture;
 
   @override
   void initState() {
     super.initState();
+
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1500),
@@ -39,6 +42,8 @@ class _DashboardScreenState extends State<DashboardScreen>
     _sessionsStatAnimation = _makeEntranceAnimation(0.45, 0.85);
     _tasksSectionAnimation = _makeEntranceAnimation(0.48, 0.88);
     _sessionsSectionAnimation = _makeEntranceAnimation(0.60, 1.0);
+
+    _studyTipFuture = StudyTipService().fetchStudyTip();
 
     _controller.forward();
   }
@@ -81,7 +86,6 @@ class _DashboardScreenState extends State<DashboardScreen>
     final totalTasks = taskProvider.totalTasks;
     final todayMinutes = studyProvider.todayMinutes;
 
-    // Put incomplete tasks first and show a small, useful preview on the dashboard.
     pendingTasks.sort((a, b) {
       if (a.dueDate == null && b.dueDate == null) return 0;
       if (a.dueDate == null) return 1;
@@ -135,6 +139,11 @@ class _DashboardScreenState extends State<DashboardScreen>
                 taskProvider.completionProgress,
               ),
             ),
+            const SizedBox(height: 18),
+
+            // REST API: Daily Inspiration card.
+            _enter(_tasksSectionAnimation, _buildStudyTipCard(context)),
+
             const SizedBox(height: 24),
             Row(
               children: [
@@ -231,6 +240,99 @@ class _DashboardScreenState extends State<DashboardScreen>
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _refreshStudyTip() {
+    setState(() {
+      _studyTipFuture = StudyTipService().fetchStudyTip();
+    });
+  }
+
+  Widget _buildStudyTipCard(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.55),
+        ),
+      ),
+      child: FutureBuilder<String>(
+        future: _studyTipFuture,
+        builder: (context, snapshot) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.lightbulb_rounded,
+                    color: theme.colorScheme.secondary,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'DAILY INSPIRATION',
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        color: theme.colorScheme.secondary,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Get another tip',
+                    onPressed:
+                        snapshot.connectionState == ConnectionState.waiting
+                        ? null
+                        : _refreshStudyTip,
+                    icon: const Icon(Icons.refresh_rounded),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              if (snapshot.connectionState == ConnectionState.waiting)
+                const Row(
+                  children: [
+                    SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    SizedBox(width: 12),
+                    Expanded(child: Text('Fetching a fresh tip...')),
+                  ],
+                )
+              else if (snapshot.hasError || !snapshot.hasData)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Could not load a tip right now.'),
+                    const SizedBox(height: 6),
+                    TextButton.icon(
+                      onPressed: _refreshStudyTip,
+                      icon: const Icon(Icons.refresh_rounded),
+                      label: const Text('Try again'),
+                    ),
+                  ],
+                )
+              else
+                Text(
+                  snapshot.data!,
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    height: 1.4,
+                  ),
+                ),
+            ],
+          );
+        },
       ),
     );
   }
