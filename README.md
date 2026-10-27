@@ -2,6 +2,10 @@
 
 A Flutter-based productivity application that helps students organize academic tasks, plan study sessions, track progress, and build consistent study habits.
 
+## 🚀 Live Demo
+
+**[Open Student Productivity Planner](https://varshiniayyapusetty.github.io/student_productivity_planner/)**
+
 ## ✨ Features
 
 - **Personalized Dashboard:** View a personalized greeting, current date, and productivity statistics.
