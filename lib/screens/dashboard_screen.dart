@@ -6,6 +6,7 @@ import '../models/task.dart';
 import '../providers/task_provider.dart';
 import '../providers/study_session_provider.dart';
 import '../services/study_tip_service.dart';
+import '../providers/profile_provider.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -337,41 +338,71 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
   }
 
-  Widget _buildWelcomeHeader(BuildContext context, int pendingCount) {
-    final theme = Theme.of(context);
-    final greeting = pendingCount == 0
-        ? 'You are all caught up!'
-        : 'You have $pendingCount task${pendingCount == 1 ? '' : 's'} to tackle.';
+  
+Widget _buildWelcomeHeader(BuildContext context, int pendingCount) {
+  final theme = Theme.of(context);
+  final profile = context.watch<ProfileProvider>().profile;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'YOUR DAY, AT A GLANCE',
-          style: theme.textTheme.labelMedium?.copyWith(
-            color: theme.colorScheme.primary,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 1.5,
+  final name = profile.name.trim();
+  final firstName = name.isEmpty ? 'Student' : name.split(' ').first;
+
+  final greeting = pendingCount == 0
+      ? 'You are all caught up!'
+      : 'You have $pendingCount task${pendingCount == 1 ? '' : 's'} to tackle.';
+
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'YOUR DAY, AT A GLANCE',
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: theme.colorScheme.primary,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Hello, $firstName 👋',
+                  style: theme.textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.7,
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Hello, Student 👋',
-          style: theme.textTheme.headlineMedium?.copyWith(
-            fontWeight: FontWeight.w800,
-            letterSpacing: -0.7,
+          CircleAvatar(
+            radius: 27,
+            backgroundColor: theme.colorScheme.primaryContainer,
+            child: Text(
+              name.isEmpty ? '?' : name[0].toUpperCase(),
+              style: theme.textTheme.titleLarge?.copyWith(
+                color: theme.colorScheme.onPrimaryContainer,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
           ),
+        ],
+      ),
+      const SizedBox(height: 8),
+      Text(
+        greeting,
+        style: theme.textTheme.bodyLarge?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
         ),
-        const SizedBox(height: 5),
-        Text(
-          greeting,
-          style: theme.textTheme.bodyLarge?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
-      ],
-    );
-  }
+      ),
+    ],
+  );
+}
+
 
   Widget _buildProgressCard(
     BuildContext context,
