@@ -4,6 +4,10 @@ import 'package:provider/provider.dart';
 import '../models/task.dart';
 import '../providers/task_provider.dart';
 
+enum _TaskFilter { all, pending, completed, high, medium, low }
+
+enum _TaskSort { dueDate, priority, title }
+
 class TasksScreen extends StatefulWidget {
   const TasksScreen({super.key});
 
@@ -17,6 +21,9 @@ class _TasksScreenState extends State<TasksScreen> {
 
   TaskPriority _selectedPriority = TaskPriority.medium;
   DateTime? _selectedDate;
+
+  _TaskFilter _selectedFilter = _TaskFilter.all;
+  _TaskSort _selectedSort = _TaskSort.dueDate;
 
   @override
   void dispose() {
@@ -157,10 +164,63 @@ class _TasksScreenState extends State<TasksScreen> {
     context.read<TaskProvider>().deleteTask(task.id);
   }
 
+  List<Task> _getVisibleTasks(List<Task> allTasks) {
+    final filteredTasks = allTasks.where((task) {
+      switch (_selectedFilter) {
+        case _TaskFilter.all:
+          return true;
+        case _TaskFilter.pending:
+          return !task.isCompleted;
+        case _TaskFilter.completed:
+          return task.isCompleted;
+        case _TaskFilter.high:
+          return task.priority == TaskPriority.high;
+        case _TaskFilter.medium:
+          return task.priority == TaskPriority.medium;
+        case _TaskFilter.low:
+          return task.priority == TaskPriority.low;
+      }
+    }).toList();
+
+    switch (_selectedSort) {
+      case _TaskSort.dueDate:
+        filteredTasks.sort((a, b) {
+          if (a.dueDate == null && b.dueDate == null) {
+            return a.title.toLowerCase().compareTo(b.title.toLowerCase());
+          }
+          if (a.dueDate == null) return 1;
+          if (b.dueDate == null) return -1;
+
+          return a.dueDate!.compareTo(b.dueDate!);
+        });
+
+      case _TaskSort.priority:
+        const priorityOrder = {
+          TaskPriority.high: 0,
+          TaskPriority.medium: 1,
+          TaskPriority.low: 2,
+        };
+
+        filteredTasks.sort((a, b) {
+          return priorityOrder[a.priority]!.compareTo(
+            priorityOrder[b.priority]!,
+          );
+        });
+
+      case _TaskSort.title:
+        filteredTasks.sort((a, b) {
+          return a.title.toLowerCase().compareTo(b.title.toLowerCase());
+        });
+    }
+
+    return filteredTasks;
+  }
+
   @override
   Widget build(BuildContext context) {
     final taskProvider = context.watch<TaskProvider>();
-    final tasks = taskProvider.tasks;
+    final allTasks = taskProvider.tasks;
+    final tasks = _getVisibleTasks(allTasks);
     final completed = taskProvider.completedTasks;
     final total = taskProvider.totalTasks;
 
@@ -203,8 +263,107 @@ class _TasksScreenState extends State<TasksScreen> {
               ),
             ),
             const SizedBox(height: 16),
+
+            // Filter and sorting controls.
+            Row(
+              children: [
+                Expanded(
+                  child: DropdownButtonFormField<_TaskFilter>(
+                    initialValue: _selectedFilter,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Filter',
+                      prefixIcon: Icon(Icons.filter_list),
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 12,
+                      ),
+                    ),
+                    items: const [
+                      DropdownMenuItem(
+                        value: _TaskFilter.all,
+                        child: Text('All tasks'),
+                      ),
+                      DropdownMenuItem(
+                        value: _TaskFilter.pending,
+                        child: Text('Pending'),
+                      ),
+                      DropdownMenuItem(
+                        value: _TaskFilter.completed,
+                        child: Text('Completed'),
+                      ),
+                      DropdownMenuItem(
+                        value: _TaskFilter.high,
+                        child: Text('High priority'),
+                      ),
+                      DropdownMenuItem(
+                        value: _TaskFilter.medium,
+                        child: Text('Medium priority'),
+                      ),
+                      DropdownMenuItem(
+                        value: _TaskFilter.low,
+                        child: Text('Low priority'),
+                      ),
+                    ],
+                    onChanged: (filter) {
+                      if (filter != null) {
+                        setState(() {
+                          _selectedFilter = filter;
+                        });
+                      }
+                    },
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: DropdownButtonFormField<_TaskSort>(
+                    initialValue: _selectedSort,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Sort by',
+                      prefixIcon: Icon(Icons.sort),
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 12,
+                      ),
+                    ),
+                    items: const [
+                      DropdownMenuItem(
+                        value: _TaskSort.dueDate,
+                        child: Text('Due date'),
+                      ),
+                      DropdownMenuItem(
+                        value: _TaskSort.priority,
+                        child: Text('Priority'),
+                      ),
+                      DropdownMenuItem(
+                        value: _TaskSort.title,
+                        child: Text('Title A–Z'),
+                      ),
+                    ],
+                    onChanged: (sort) {
+                      if (sort != null) {
+                        setState(() {
+                          _selectedSort = sort;
+                        });
+                      }
+                    },
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            Text(
+              '${tasks.length} ${tasks.length == 1 ? 'task' : 'tasks'} shown',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 8),
+
             Expanded(
-              child: tasks.isEmpty
+              child: allTasks.isEmpty
                   ? const Center(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
@@ -223,6 +382,8 @@ class _TasksScreenState extends State<TasksScreen> {
                         ],
                       ),
                     )
+                  : tasks.isEmpty
+                  ? const Center(child: Text('No tasks match this filter.'))
                   : ListView.builder(
                       itemCount: tasks.length,
                       itemBuilder: (context, index) {
