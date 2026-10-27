@@ -1,7 +1,9 @@
+
 import 'package:flutter/material.dart';
 
 import 'dashboard_screen.dart';
 import 'insights_screen.dart';
+import 'profile_screen.dart';
 import 'study_planner_screen.dart';
 import 'tasks_screen.dart';
 
@@ -20,12 +22,16 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     TasksScreen(),
     StudyPlannerScreen(),
     InsightsScreen(),
+    ProfileScreen(),
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(index: _selectedIndex, children: _screens),
+      body: IndexedStack(
+        index: _selectedIndex,
+        children: _screens,
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
         onDestinationSelected: (index) {
@@ -53,6 +59,11 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             icon: Icon(Icons.insights_outlined),
             selectedIcon: Icon(Icons.insights),
             label: 'Insights',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.person_outline),
+            selectedIcon: Icon(Icons.person),
+            label: 'Profile',
           ),
         ],
       ),
