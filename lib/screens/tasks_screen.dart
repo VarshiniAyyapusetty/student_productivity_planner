@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../models/task.dart';
+import '../providers/task_provider.dart';
 
 class TasksScreen extends StatefulWidget {
   const TasksScreen({super.key});
@@ -10,14 +12,11 @@ class TasksScreen extends StatefulWidget {
 }
 
 class _TasksScreenState extends State<TasksScreen> {
-  final List<Task> _tasks = [];
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
 
   TaskPriority _selectedPriority = TaskPriority.medium;
   DateTime? _selectedDate;
-
-  int get _completedCount => _tasks.where((task) => task.isCompleted).length;
 
   @override
   void dispose() {
@@ -69,7 +68,7 @@ class _TasksScreenState extends State<TasksScreen> {
                         border: OutlineInputBorder(),
                       ),
                       items: TaskPriority.values.map((priority) {
-                        return DropdownMenuItem(
+                        return DropdownMenuItem<TaskPriority>(
                           value: priority,
                           child: Text(_priorityLabel(priority)),
                         );
@@ -85,13 +84,13 @@ class _TasksScreenState extends State<TasksScreen> {
                     const SizedBox(height: 12),
                     OutlinedButton.icon(
                       onPressed: () async {
+                        final now = DateTime.now();
+
                         final date = await showDatePicker(
                           context: context,
-                          initialDate: DateTime.now(),
-                          firstDate: DateTime.now(),
-                          lastDate: DateTime.now().add(
-                            const Duration(days: 3650),
-                          ),
+                          initialDate: _selectedDate ?? now,
+                          firstDate: DateTime(now.year, now.month, now.day),
+                          lastDate: now.add(const Duration(days: 3650)),
                         );
 
                         if (date != null) {
@@ -137,37 +136,33 @@ class _TasksScreenState extends State<TasksScreen> {
       },
     );
 
-    if (result == true && mounted) {
-      setState(() {
-        _tasks.add(
-          Task(
-            id: DateTime.now().microsecondsSinceEpoch.toString(),
-            title: _titleController.text.trim(),
-            description: _descriptionController.text.trim(),
-            dueDate: _selectedDate,
-            priority: _selectedPriority,
-          ),
-        );
-      });
-    }
+    if (result != true || !mounted) return;
+
+    final task = Task(
+      id: DateTime.now().microsecondsSinceEpoch.toString(),
+      title: _titleController.text.trim(),
+      description: _descriptionController.text.trim(),
+      dueDate: _selectedDate,
+      priority: _selectedPriority,
+    );
+
+    context.read<TaskProvider>().addTask(task);
   }
 
   void _toggleTask(Task task, bool? value) {
-    setState(() {
-      task.isCompleted = value ?? false;
-    });
+    context.read<TaskProvider>().toggleTask(task.id, value ?? false);
   }
 
   void _deleteTask(Task task) {
-    setState(() {
-      _tasks.removeWhere((item) => item.id == task.id);
-    });
+    context.read<TaskProvider>().deleteTask(task.id);
   }
 
   @override
   Widget build(BuildContext context) {
-    final completed = _completedCount;
-    final total = _tasks.length;
+    final taskProvider = context.watch<TaskProvider>();
+    final tasks = taskProvider.tasks;
+    final completed = taskProvider.completedTasks;
+    final total = taskProvider.totalTasks;
 
     return Scaffold(
       appBar: AppBar(
@@ -199,7 +194,7 @@ class _TasksScreenState extends State<TasksScreen> {
                     ),
                     const SizedBox(height: 12),
                     LinearProgressIndicator(
-                      value: total == 0 ? 0 : completed / total,
+                      value: taskProvider.completionProgress,
                       minHeight: 8,
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -209,7 +204,7 @@ class _TasksScreenState extends State<TasksScreen> {
             ),
             const SizedBox(height: 16),
             Expanded(
-              child: _tasks.isEmpty
+              child: tasks.isEmpty
                   ? const Center(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
@@ -229,9 +224,9 @@ class _TasksScreenState extends State<TasksScreen> {
                       ),
                     )
                   : ListView.builder(
-                      itemCount: _tasks.length,
+                      itemCount: tasks.length,
                       itemBuilder: (context, index) {
-                        final task = _tasks[index];
+                        final task = tasks[index];
 
                         return Card(
                           margin: const EdgeInsets.only(bottom: 10),

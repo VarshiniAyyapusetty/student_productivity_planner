@@ -1,10 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import '../providers/task_provider.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final taskProvider = context.watch<TaskProvider>();
+    final tasks = taskProvider.tasks;
+    final completedTasks = taskProvider.completedTasks;
+    final totalTasks = taskProvider.totalTasks;
+
     final theme = Theme.of(context);
 
     return Scaffold(
@@ -41,7 +49,14 @@ class DashboardScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 24),
-            _buildProgressCard(context),
+
+            _buildProgressCard(
+              context,
+              completedTasks,
+              totalTasks,
+              taskProvider.completionProgress,
+            ),
+
             const SizedBox(height: 28),
             Text(
               "Today's Overview",
@@ -50,13 +65,14 @@ class DashboardScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
+
             Row(
               children: [
                 Expanded(
                   child: _buildStatCard(
                     context,
                     'Tasks',
-                    '0',
+                    totalTasks.toString(),
                     Icons.task_alt,
                     Colors.blue,
                   ),
@@ -74,13 +90,14 @@ class DashboardScreen extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
+
             Row(
               children: [
                 Expanded(
                   child: _buildStatCard(
                     context,
                     'Completed',
-                    '0',
+                    completedTasks.toString(),
                     Icons.check_circle_outline,
                     Colors.green,
                   ),
@@ -97,6 +114,7 @@ class DashboardScreen extends StatelessWidget {
                 ),
               ],
             ),
+
             const SizedBox(height: 28),
             Text(
               'Upcoming Tasks',
@@ -105,44 +123,85 @@ class DashboardScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 12),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.event_note_outlined,
-                      size: 32,
-                      color: theme.colorScheme.primary,
-                    ),
-                    const SizedBox(width: 16),
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'No tasks yet',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 16,
+
+            if (tasks.isEmpty)
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.event_note_outlined,
+                        size: 32,
+                        color: theme.colorScheme.primary,
+                      ),
+                      const SizedBox(width: 16),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'No tasks yet',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 16,
+                              ),
                             ),
+                            SizedBox(height: 4),
+                            Text('Add a task to organise your study day.'),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else
+              ...tasks
+                  .take(3)
+                  .map(
+                    (task) => Card(
+                      margin: const EdgeInsets.only(bottom: 10),
+                      child: ListTile(
+                        leading: Icon(
+                          task.isCompleted
+                              ? Icons.check_circle
+                              : Icons.radio_button_unchecked,
+                          color: task.isCompleted
+                              ? Colors.green
+                              : theme.colorScheme.primary,
+                        ),
+                        title: Text(
+                          task.title,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            decoration: task.isCompleted
+                                ? TextDecoration.lineThrough
+                                : null,
                           ),
-                          SizedBox(height: 4),
-                          Text('Add a task to organise your study day.'),
-                        ],
+                        ),
+                        subtitle: Text(
+                          task.isCompleted
+                              ? 'Completed'
+                              : task.dueDate == null
+                              ? 'Pending'
+                              : 'Due ${_formatDate(task.dueDate!)}',
+                        ),
                       ),
                     ),
-                  ],
-                ),
-              ),
-            ),
+                  ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildProgressCard(BuildContext context) {
+  Widget _buildProgressCard(
+    BuildContext context,
+    int completed,
+    int total,
+    double progress,
+  ) {
     final theme = Theme.of(context);
 
     return Container(
@@ -154,26 +213,40 @@ class DashboardScreen extends StatelessWidget {
         ),
         borderRadius: BorderRadius.circular(20),
       ),
-      child: const Column(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
+          const Text(
             "Today's Progress",
             style: TextStyle(color: Colors.white70, fontSize: 16),
           ),
-          SizedBox(height: 12),
+          const SizedBox(height: 12),
           Text(
-            'Ready to get started?',
-            style: TextStyle(
+            total == 0
+                ? 'Ready to get started?'
+                : '$completed of $total tasks completed',
+            style: const TextStyle(
               color: Colors.white,
               fontSize: 23,
               fontWeight: FontWeight.bold,
             ),
           ),
-          SizedBox(height: 8),
+          const SizedBox(height: 8),
           Text(
-            'Complete your tasks and track your progress here.',
-            style: TextStyle(color: Colors.white),
+            total == 0
+                ? 'Add your first task and start making progress.'
+                : 'Keep going! You have ${total - completed} tasks remaining.',
+            style: const TextStyle(color: Colors.white),
+          ),
+          const SizedBox(height: 16),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 8,
+              backgroundColor: Colors.white30,
+              valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+            ),
           ),
         ],
       ),
@@ -206,5 +279,10 @@ class DashboardScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  static String _formatDate(DateTime date) {
+    return '${date.day.toString().padLeft(2, '0')}/'
+        '${date.month.toString().padLeft(2, '0')}/${date.year}';
   }
 }
