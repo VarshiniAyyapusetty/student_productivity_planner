@@ -339,69 +339,99 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   
+
 Widget _buildWelcomeHeader(BuildContext context, int pendingCount) {
   final theme = Theme.of(context);
+  final colors = theme.colorScheme;
   final profile = context.watch<ProfileProvider>().profile;
 
   final name = profile.name.trim();
   final firstName = name.isEmpty ? 'Student' : name.split(' ').first;
-
   final greeting = pendingCount == 0
       ? 'You are all caught up!'
       : 'You have $pendingCount task${pendingCount == 1 ? '' : 's'} to tackle.';
 
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'YOUR DAY, AT A GLANCE',
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    color: theme.colorScheme.primary,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1.5,
+  final now = DateTime.now();
+  const months = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December',
+  ];
+  const weekdays = [
+    'Monday', 'Tuesday', 'Wednesday', 'Thursday',
+    'Friday', 'Saturday', 'Sunday',
+  ];
+  final dateLabel = '${weekdays[now.weekday - 1]}, '
+      '${months[now.month - 1]} ${now.day}';
+
+  return Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(20),
+    decoration: BoxDecoration(
+      color: colors.primaryContainer.withValues(alpha: 0.55),
+      borderRadius: BorderRadius.circular(24),
+      border: Border.all(
+        color: colors.primary.withValues(alpha: 0.14),
+      ),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    dateLabel.toUpperCase(),
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: colors.primary,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.1,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Hello, $firstName 👋',
-                  style: theme.textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.7,
+                  const SizedBox(height: 10),
+                  Text(
+                    'Hello, $firstName 👋',
+                    style: theme.textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -0.8,
+                    ),
                   ),
-                ),
-              ],
-            ),
-          ),
-          CircleAvatar(
-            radius: 27,
-            backgroundColor: theme.colorScheme.primaryContainer,
-            child: Text(
-              name.isEmpty ? '?' : name[0].toUpperCase(),
-              style: theme.textTheme.titleLarge?.copyWith(
-                color: theme.colorScheme.onPrimaryContainer,
-                fontWeight: FontWeight.w800,
+                ],
               ),
             ),
-          ),
-        ],
-      ),
-      const SizedBox(height: 8),
-      Text(
-        greeting,
-        style: theme.textTheme.bodyLarge?.copyWith(
-          color: theme.colorScheme.onSurfaceVariant,
+            Container(
+              width: 54,
+              height: 54,
+              decoration: BoxDecoration(
+                color: colors.primary,
+                borderRadius: BorderRadius.circular(18),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                name.isEmpty ? '?' : name[0].toUpperCase(),
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  color: colors.onPrimary,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ],
         ),
-      ),
-    ],
+        const SizedBox(height: 14),
+        Text(
+          greeting,
+          style: theme.textTheme.bodyLarge?.copyWith(
+            color: colors.onSurfaceVariant,
+            height: 1.4,
+          ),
+        ),
+      ],
+    ),
   );
 }
+
 
 
   Widget _buildProgressCard(
@@ -510,81 +540,96 @@ Widget _buildWelcomeHeader(BuildContext context, int pendingCount) {
     );
   }
 
-  Widget _buildStatCard(
-    BuildContext context, {
-    required String title,
-    required String value,
-    required String subtitle,
-    required IconData icon,
-    required Color accent,
-  }) {
-    final theme = Theme.of(context);
+  
+Widget _buildStatCard(
+  BuildContext context, {
+  required String title,
+  required String value,
+  required String subtitle,
+  required IconData icon,
+  required Color accent,
+}) {
+  final theme = Theme.of(context);
+  final colors = theme.colorScheme;
 
-    return Container(
-      constraints: const BoxConstraints(minHeight: 142),
-      padding: const EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.55),
+  return Container(
+    constraints: const BoxConstraints(minHeight: 158),
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: colors.surface,
+      borderRadius: BorderRadius.circular(22),
+      border: Border.all(
+        color: accent.withValues(alpha: 0.25),
+      ),
+      boxShadow: [
+        BoxShadow(
+          color: accent.withValues(alpha: 0.07),
+          blurRadius: 16,
+          offset: const Offset(0, 6),
         ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: accent.withValues(alpha: 0.14),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(icon, color: accent, size: 23),
-          ),
-          const SizedBox(height: 14),
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 350),
-            transitionBuilder: (child, animation) => FadeTransition(
-              opacity: animation,
-              child: SlideTransition(
-                position: Tween<Offset>(
-                  begin: const Offset(0, 0.25),
-                  end: Offset.zero,
-                ).animate(animation),
-                child: child,
+      ],
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Container(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                color: accent.withValues(alpha: 0.13),
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: Icon(
+                icon,
+                color: accent,
+                size: 25,
               ),
             ),
-            child: Text(
-              value,
-              key: ValueKey(value),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w800,
-              ),
+            Icon(
+              Icons.north_east_rounded,
+              color: accent.withValues(alpha: 0.7),
+              size: 19,
             ),
+          ],
+        ),
+        const SizedBox(height: 18),
+        Text(
+          value,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.w900,
+            letterSpacing: -0.8,
+            color: colors.onSurface,
           ),
-          const SizedBox(height: 3),
-          Text(
-            title,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.titleSmall?.copyWith(
+            fontWeight: FontWeight.w800,
+            color: colors.onSurface,
           ),
-          const SizedBox(height: 2),
-          Text(
-            subtitle,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          subtitle,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: colors.onSurfaceVariant,
           ),
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ),
+  );
+}
+
 
   Widget _buildSectionHeader(
     BuildContext context, {
