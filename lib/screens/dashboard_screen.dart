@@ -2,11 +2,72 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../main.dart';
+import '../models/task.dart';
 import '../providers/task_provider.dart';
 import '../providers/study_session_provider.dart';
 
-class DashboardScreen extends StatelessWidget {
+class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
+
+  @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _heroAnimation;
+  late final Animation<double> _tasksStatAnimation;
+  late final Animation<double> _studyStatAnimation;
+  late final Animation<double> _completedStatAnimation;
+  late final Animation<double> _sessionsStatAnimation;
+  late final Animation<double> _tasksSectionAnimation;
+  late final Animation<double> _sessionsSectionAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    );
+
+    _heroAnimation = _makeEntranceAnimation(0.0, 0.42);
+    _tasksStatAnimation = _makeEntranceAnimation(0.18, 0.58);
+    _studyStatAnimation = _makeEntranceAnimation(0.27, 0.67);
+    _completedStatAnimation = _makeEntranceAnimation(0.36, 0.76);
+    _sessionsStatAnimation = _makeEntranceAnimation(0.45, 0.85);
+    _tasksSectionAnimation = _makeEntranceAnimation(0.48, 0.88);
+    _sessionsSectionAnimation = _makeEntranceAnimation(0.60, 1.0);
+
+    _controller.forward();
+  }
+
+  Animation<double> _makeEntranceAnimation(double start, double end) {
+    return CurvedAnimation(
+      parent: _controller,
+      curve: Interval(start, end, curve: Curves.easeOutCubic),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Widget _enter(Animation<double> animation, Widget child) {
+    return FadeTransition(
+      opacity: animation,
+      child: SlideTransition(
+        position: Tween<Offset>(
+          begin: const Offset(0, 0.12),
+          end: Offset.zero,
+        ).animate(animation),
+        child: child,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -14,12 +75,19 @@ class DashboardScreen extends StatelessWidget {
     final studyProvider = context.watch<StudySessionProvider>();
 
     final tasks = taskProvider.tasks;
+    final pendingTasks = tasks.where((task) => !task.isCompleted).toList();
     final todaySessions = studyProvider.todaySessions;
     final completedTasks = taskProvider.completedTasks;
     final totalTasks = taskProvider.totalTasks;
     final todayMinutes = studyProvider.todayMinutes;
 
-    final theme = Theme.of(context);
+    // Put incomplete tasks first and show a small, useful preview on the dashboard.
+    pendingTasks.sort((a, b) {
+      if (a.dueDate == null && b.dueDate == null) return 0;
+      if (a.dueDate == null) return 1;
+      if (b.dueDate == null) return -1;
+      return a.dueDate!.compareTo(b.dueDate!);
+    });
 
     return Scaffold(
       appBar: AppBar(
@@ -49,218 +117,157 @@ class DashboardScreen extends StatelessWidget {
         ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.fromLTRB(18, 12, 18, 28),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Hello, Student! 👋',
-              style: theme.textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+            _enter(
+              _heroAnimation,
+              _buildWelcomeHeader(context, pendingTasks.length),
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Make today count. One task at a time.',
-              style: theme.textTheme.bodyLarge?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
+            const SizedBox(height: 20),
+            _enter(
+              _heroAnimation,
+              _buildProgressCard(
+                context,
+                completedTasks,
+                totalTasks,
+                taskProvider.completionProgress,
               ),
             ),
             const SizedBox(height: 24),
-
-            _buildProgressCard(
-              context,
-              completedTasks,
-              totalTasks,
-              taskProvider.completionProgress,
-            ),
-
-            const SizedBox(height: 28),
-            Text(
-              "Today's Overview",
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 16),
-
             Row(
               children: [
                 Expanded(
-                  child: _buildStatCard(
-                    context,
-                    'Tasks',
-                    totalTasks.toString(),
-                    Icons.task_alt,
-                    Colors.blue,
+                  child: _enter(
+                    _tasksStatAnimation,
+                    _buildStatCard(
+                      context,
+                      title: 'All tasks',
+                      value: totalTasks.toString(),
+                      subtitle: '${pendingTasks.length} remaining',
+                      icon: Icons.checklist_rounded,
+                      accent: const Color(0xFF4D8DFF),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: _buildStatCard(
-                    context,
-                    'Study Hours',
-                    '${todayMinutes ~/ 60}h ${todayMinutes % 60}m',
-                    Icons.timer_outlined,
-                    Colors.orange,
+                  child: _enter(
+                    _studyStatAnimation,
+                    _buildStatCard(
+                      context,
+                      title: 'Study time',
+                      value: '${todayMinutes ~/ 60}h ${todayMinutes % 60}m',
+                      subtitle: 'Today',
+                      icon: Icons.timer_rounded,
+                      accent: const Color(0xFFFFA34D),
+                    ),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 12),
-
             Row(
               children: [
                 Expanded(
-                  child: _buildStatCard(
-                    context,
-                    'Completed',
-                    completedTasks.toString(),
-                    Icons.check_circle_outline,
-                    Colors.green,
+                  child: _enter(
+                    _completedStatAnimation,
+                    _buildStatCard(
+                      context,
+                      title: 'Completed',
+                      value: completedTasks.toString(),
+                      subtitle: 'Tasks finished',
+                      icon: Icons.task_alt_rounded,
+                      accent: const Color(0xFF39B982),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: _buildStatCard(
-                    context,
-                    'Study Sessions',
-                    todaySessions.length.toString(),
-                    Icons.menu_book_outlined,
-                    Colors.deepPurple,
+                  child: _enter(
+                    _sessionsStatAnimation,
+                    _buildStatCard(
+                      context,
+                      title: 'Sessions',
+                      value: todaySessions.length.toString(),
+                      subtitle: 'Logged today',
+                      icon: Icons.menu_book_rounded,
+                      accent: const Color(0xFF9A78E8),
+                    ),
                   ),
                 ),
               ],
             ),
-
             const SizedBox(height: 28),
-            Text(
-              'Upcoming Tasks',
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
+            _enter(
+              _tasksSectionAnimation,
+              _buildSectionHeader(
+                context,
+                title: 'Up next',
+                subtitle: 'A short list to keep you moving',
+                icon: Icons.upcoming_rounded,
               ),
             ),
             const SizedBox(height: 12),
-
-            if (tasks.isEmpty)
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.event_note_outlined,
-                        size: 32,
-                        color: theme.colorScheme.primary,
-                      ),
-                      const SizedBox(width: 16),
-                      const Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'No tasks yet',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 16,
-                              ),
-                            ),
-                            SizedBox(height: 4),
-                            Text('Add a task to organise your study day.'),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              )
-            else
-              ...tasks
-                  .take(3)
-                  .map(
-                    (task) => Card(
-                      margin: const EdgeInsets.only(bottom: 10),
-                      child: ListTile(
-                        leading: Icon(
-                          task.isCompleted
-                              ? Icons.check_circle
-                              : Icons.radio_button_unchecked,
-                          color: task.isCompleted
-                              ? Colors.green
-                              : theme.colorScheme.primary,
-                        ),
-                        title: Text(
-                          task.title,
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            decoration: task.isCompleted
-                                ? TextDecoration.lineThrough
-                                : null,
-                          ),
-                        ),
-                        subtitle: Text(
-                          task.isCompleted
-                              ? 'Completed'
-                              : task.dueDate == null
-                              ? 'Pending'
-                              : 'Due ${_formatDate(task.dueDate!)}',
-                        ),
-                      ),
-                    ),
-                  ),
-
+            _enter(
+              _tasksSectionAnimation,
+              _buildUpcomingTasks(context, tasks, pendingTasks),
+            ),
             const SizedBox(height: 28),
-            Text(
-              "Today's Study Sessions",
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
+            _enter(
+              _sessionsSectionAnimation,
+              _buildSectionHeader(
+                context,
+                title: "Today's study log",
+                subtitle: 'Your focused work so far',
+                icon: Icons.history_rounded,
               ),
             ),
             const SizedBox(height: 12),
-
-            if (studyProvider.isLoading)
-              const Center(child: CircularProgressIndicator())
-            else if (todaySessions.isEmpty)
-              const Card(
-                child: Padding(
-                  padding: EdgeInsets.all(20),
-                  child: Row(
-                    children: [
-                      Icon(Icons.menu_book_outlined, size: 30),
-                      SizedBox(width: 12),
-                      Expanded(
-                        child: Text('No study sessions planned for today.'),
-                      ),
-                    ],
-                  ),
-                ),
-              )
-            else
-              ...todaySessions
-                  .take(3)
-                  .map(
-                    (session) => Card(
-                      margin: const EdgeInsets.only(bottom: 10),
-                      child: ListTile(
-                        leading: const CircleAvatar(
-                          child: Icon(Icons.menu_book_outlined),
-                        ),
-                        title: Text(
-                          session.subject,
-                          style: const TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                        subtitle: Text(
-                          session.goal.isEmpty
-                              ? '${session.durationMinutes} minutes'
-                              : '${session.durationMinutes} minutes • '
-                                    '${session.goal}',
-                        ),
-                      ),
-                    ),
-                  ),
+            _enter(
+              _sessionsSectionAnimation,
+              _buildStudySessions(context, studyProvider),
+            ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildWelcomeHeader(BuildContext context, int pendingCount) {
+    final theme = Theme.of(context);
+    final greeting = pendingCount == 0
+        ? 'You are all caught up!'
+        : 'You have $pendingCount task${pendingCount == 1 ? '' : 's'} to tackle.';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'YOUR DAY, AT A GLANCE',
+          style: theme.textTheme.labelMedium?.copyWith(
+            color: theme.colorScheme.primary,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1.5,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Hello, Student 👋',
+          style: theme.textTheme.headlineMedium?.copyWith(
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.7,
+          ),
+        ),
+        const SizedBox(height: 5),
+        Text(
+          greeting,
+          style: theme.textTheme.bodyLarge?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ],
     );
   }
 
@@ -271,50 +278,99 @@ class DashboardScreen extends StatelessWidget {
     double progress,
   ) {
     final theme = Theme.of(context);
+    final colors = theme.colorScheme;
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [theme.colorScheme.primary, theme.colorScheme.tertiary],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [colors.primary, colors.tertiary],
         ),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(26),
+        boxShadow: [
+          BoxShadow(
+            color: colors.primary.withValues(alpha: 0.22),
+            blurRadius: 22,
+            offset: const Offset(0, 10),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            "Today's Progress",
-            style: TextStyle(color: Colors.white70, fontSize: 16),
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  "TODAY'S FOCUS",
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.4,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  total == 0 ? 'Ready' : '${(progress * 100).round()}% done',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           Text(
             total == 0
-                ? 'Ready to get started?'
-                : '$completed of $total tasks completed',
+                ? 'Start small. Build momentum.'
+                : '$completed of $total tasks done',
             style: const TextStyle(
               color: Colors.white,
               fontSize: 23,
-              fontWeight: FontWeight.bold,
+              height: 1.2,
+              fontWeight: FontWeight.w800,
             ),
           ),
           const SizedBox(height: 8),
           Text(
             total == 0
-                ? 'Add your first task and start making progress.'
-                : 'Keep going! You have ${total - completed} tasks remaining.',
-            style: const TextStyle(color: Colors.white),
+                ? 'Add a task to give your study day a clear starting point.'
+                : total == completed
+                ? 'Great work — you completed every task on your list.'
+                : 'Keep your focus on the next small step.',
+            style: const TextStyle(color: Colors.white70, height: 1.4),
           ),
-          const SizedBox(height: 16),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: LinearProgressIndicator(
-              value: progress,
-              minHeight: 8,
-              backgroundColor: Colors.white30,
-              valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
-            ),
+          const SizedBox(height: 20),
+          TweenAnimationBuilder<double>(
+            tween: Tween<double>(begin: 0, end: progress),
+            duration: const Duration(milliseconds: 1200),
+            curve: Curves.easeOutCubic,
+            builder: (context, animatedProgress, child) {
+              return ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: LinearProgressIndicator(
+                  value: animatedProgress,
+                  minHeight: 10,
+                  backgroundColor: Colors.white.withValues(alpha: 0.25),
+                  valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              );
+            },
           ),
         ],
       ),
@@ -322,31 +378,321 @@ class DashboardScreen extends StatelessWidget {
   }
 
   Widget _buildStatCard(
-    BuildContext context,
-    String title,
-    String value,
-    IconData icon,
-    Color color,
-  ) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, color: color, size: 28),
-            const SizedBox(height: 16),
-            Text(
-              value,
-              style: Theme.of(context).textTheme.titleLarge
-                  ?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 4),
-            Text(title, style: Theme.of(context).textTheme.bodyMedium),
-          ],
+    BuildContext context, {
+    required String title,
+    required String value,
+    required String subtitle,
+    required IconData icon,
+    required Color accent,
+  }) {
+    final theme = Theme.of(context);
+
+    return Container(
+      constraints: const BoxConstraints(minHeight: 142),
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.55),
         ),
       ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(icon, color: accent, size: 23),
+          ),
+          const SizedBox(height: 14),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 350),
+            transitionBuilder: (child, animation) => FadeTransition(
+              opacity: animation,
+              child: SlideTransition(
+                position: Tween<Offset>(
+                  begin: const Offset(0, 0.25),
+                  end: Offset.zero,
+                ).animate(animation),
+                child: child,
+              ),
+            ),
+            child: Text(
+              value,
+              key: ValueKey(value),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            title,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            subtitle,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
     );
+  }
+
+  Widget _buildSectionHeader(
+    BuildContext context, {
+    required String title,
+    required String subtitle,
+    required IconData icon,
+  }) {
+    final theme = Theme.of(context);
+
+    return Row(
+      children: [
+        Container(
+          width: 42,
+          height: 42,
+          decoration: BoxDecoration(
+            color: theme.colorScheme.primaryContainer,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Icon(icon, color: theme.colorScheme.onPrimaryContainer),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildUpcomingTasks(
+    BuildContext context,
+    List<Task> tasks,
+    List<Task> pendingTasks,
+  ) {
+    final theme = Theme.of(context);
+
+    if (tasks.isEmpty) {
+      return _buildEmptyCard(
+        context,
+        icon: Icons.event_available_rounded,
+        title: 'Nothing on the list yet',
+        message: 'Add your first task and it will show up here.',
+      );
+    }
+
+    if (pendingTasks.isEmpty) {
+      return _buildEmptyCard(
+        context,
+        icon: Icons.celebration_rounded,
+        title: 'All tasks completed',
+        message: 'Nice work. You have cleared your current list.',
+      );
+    }
+
+    return Column(
+      children: pendingTasks.take(3).toList().asMap().entries.map((entry) {
+        final index = entry.key;
+        final task = entry.value;
+        final priorityColor = switch (task.priority.name) {
+          'high' => theme.colorScheme.error,
+          'medium' => const Color(0xFFE59A26),
+          _ => const Color(0xFF39A879),
+        };
+
+        return Container(
+          margin: const EdgeInsets.only(bottom: 10),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surfaceContainerLow,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+            ),
+          ),
+          child: ListTile(
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 5,
+            ),
+            leading: Container(
+              width: 42,
+              height: 42,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: priorityColor.withValues(alpha: 0.13),
+                borderRadius: BorderRadius.circular(13),
+              ),
+              child: Text(
+                '${index + 1}'.padLeft(2, '0'),
+                style: TextStyle(
+                  color: priorityColor,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            title: Text(
+              task.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+            subtitle: Padding(
+              padding: const EdgeInsets.only(top: 5),
+              child: Text(
+                task.dueDate == null
+                    ? '${_priorityLabel(task.priority)} priority'
+                    : '${_priorityLabel(task.priority)} priority • Due ${_formatDate(task.dueDate!)}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            trailing: Icon(
+              Icons.arrow_forward_ios_rounded,
+              size: 16,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildStudySessions(
+    BuildContext context,
+    StudySessionProvider studyProvider,
+  ) {
+    final sessions = studyProvider.todaySessions;
+
+    if (studyProvider.isLoading) {
+      return const Padding(
+        padding: EdgeInsets.all(24),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (sessions.isEmpty) {
+      return _buildEmptyCard(
+        context,
+        icon: Icons.menu_book_rounded,
+        title: 'No study sessions yet',
+        message: 'Your sessions for today will appear here.',
+      );
+    }
+
+    return Column(
+      children: sessions.take(3).map((session) {
+        return Container(
+          margin: const EdgeInsets.only(bottom: 10),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surfaceContainerLow,
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: ListTile(
+            leading: const CircleAvatar(child: Icon(Icons.menu_book_rounded)),
+            title: Text(
+              session.subject,
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+            subtitle: Text(
+              session.goal.isEmpty
+                  ? '${session.durationMinutes} minutes'
+                  : '${session.durationMinutes} minutes • ${session.goal}',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            trailing: const Icon(Icons.check_circle_outline_rounded),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildEmptyCard(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required String message,
+  }) {
+    final theme = Theme.of(context);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 34, color: theme.colorScheme.primary),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  message,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static String _priorityLabel(TaskPriority priority) {
+    switch (priority.name) {
+      case 'low':
+        return 'Low';
+      case 'high':
+        return 'High';
+      default:
+        return 'Medium';
+    }
   }
 
   static String _formatDate(DateTime date) {
