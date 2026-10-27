@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../main.dart';
 import '../providers/task_provider.dart';
 import '../providers/study_session_provider.dart';
 
@@ -27,10 +28,22 @@ class DashboardScreen extends StatelessWidget {
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         actions: [
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(Icons.notifications_outlined),
-            tooltip: 'Notifications',
+          Consumer<ThemeProvider>(
+            builder: (context, themeProvider, child) {
+              return IconButton(
+                tooltip: themeProvider.isDarkMode
+                    ? 'Switch to light mode'
+                    : 'Switch to dark mode',
+                icon: Icon(
+                  themeProvider.isDarkMode
+                      ? Icons.light_mode_outlined
+                      : Icons.dark_mode_outlined,
+                ),
+                onPressed: () {
+                  themeProvider.toggleTheme(!themeProvider.isDarkMode);
+                },
+              );
+            },
           ),
           const SizedBox(width: 8),
         ],
