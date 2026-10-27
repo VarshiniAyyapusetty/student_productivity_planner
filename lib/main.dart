@@ -14,7 +14,7 @@ class StudentProductivityPlanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (_) => TaskProvider(),
+      create: (_) => TaskProvider()..loadTasks(),
       child: MaterialApp(
         title: 'Student Productivity Planner',
         debugShowCheckedModeBanner: false,
