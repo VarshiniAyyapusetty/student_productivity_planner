@@ -1,8 +1,10 @@
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'providers/task_provider.dart';
 import 'providers/study_session_provider.dart';
+import 'providers/profile_provider.dart';
 import 'screens/main_navigation_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/tasks_screen.dart';
@@ -39,9 +41,14 @@ class StudentProductivityPlanner extends StatelessWidget {
       builder: (context, themeProvider, child) {
         return MultiProvider(
           providers: [
-            ChangeNotifierProvider(create: (_) => TaskProvider()..loadTasks()),
+            ChangeNotifierProvider(
+              create: (_) => TaskProvider()..loadTasks(),
+            ),
             ChangeNotifierProvider(
               create: (_) => StudySessionProvider()..loadSessions(),
+            ),
+            ChangeNotifierProvider(
+              create: (_) => ProfileProvider()..loadProfile(),
             ),
           ],
           child: MaterialApp(
