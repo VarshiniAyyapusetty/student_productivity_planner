@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'screens/dashboard_screen.dart';
+import 'screens/main_navigation_screen.dart';
 
 void main() {
   runApp(const StudentProductivityPlanner());
@@ -26,7 +26,7 @@ class StudentProductivityPlanner extends StatelessWidget {
           ),
         ),
       ),
-      home: const DashboardScreen(),
+      home: const MainNavigationScreen(),
     );
   }
 }
