@@ -32,17 +32,13 @@ class _TasksScreenState extends State<TasksScreen> {
     super.dispose();
   }
 
-  
   Future<void> _showAddTaskDialog() => _showTaskDialog();
 
-  
-Future<void> _showEditTaskDialog(Task task) async {
-  await _showTaskDialog(task: task);
-}
-
+  Future<void> _showEditTaskDialog(Task task) =>
+      _showTaskDialog(task: task);
 
   Future<void> _showTaskDialog({Task? task}) async {
-    final isEditing = task != null;
+    final bool isEditing = task != null;
     final formKey = GlobalKey<FormState>();
 
     _titleController.text = task?.title ?? '';
@@ -112,16 +108,23 @@ Future<void> _showEditTaskDialog(Task task) async {
                       OutlinedButton.icon(
                         onPressed: () async {
                           final now = DateTime.now();
+                          final today = DateTime(now.year, now.month, now.day);
+                          final selectedDate = _selectedDate;
+                          final initialDate =
+                              selectedDate != null &&
+                                  selectedDate.isBefore(today)
+                              ? today
+                              : selectedDate ?? today;
+
                           final date = await showDatePicker(
                             context: dialogContext,
-                            initialDate: _selectedDate != null &&
-                                    _selectedDate!.isBefore(
-                                      DateTime(now.year, now.month, now.day),
-                                    )
-                                ? DateTime(now.year, now.month, now.day)
-                                : _selectedDate ?? now,
-                            firstDate: DateTime(now.year, now.month, now.day),
-                            lastDate: DateTime(now.year + 10, now.month, now.day),
+                            initialDate: initialDate,
+                            firstDate: today,
+                            lastDate: DateTime(
+                              now.year + 10,
+                              now.month,
+                              now.day,
+                            ),
                           );
 
                           if (date != null) {
@@ -174,28 +177,27 @@ Future<void> _showEditTaskDialog(Task task) async {
 
     if (isEditing) {
       context.read<TaskProvider>().updateTask(
-            Task(
-              id: task.id,
-              title: _titleController.text.trim(),
-              description: _descriptionController.text.trim(),
-              dueDate: _selectedDate,
-              priority: _selectedPriority,
-              isCompleted: task.isCompleted,
-            ),
-          );
+        Task(
+          id: task.id,
+          title: _titleController.text.trim(),
+          description: _descriptionController.text.trim(),
+          dueDate: _selectedDate,
+          priority: _selectedPriority,
+          isCompleted: task.isCompleted,
+        ),
+      );
     } else {
       context.read<TaskProvider>().addTask(
-            Task(
-              id: DateTime.now().microsecondsSinceEpoch.toString(),
-              title: _titleController.text.trim(),
-              description: _descriptionController.text.trim(),
-              dueDate: _selectedDate,
-              priority: _selectedPriority,
-            ),
-          );
+        Task(
+          id: DateTime.now().microsecondsSinceEpoch.toString(),
+          title: _titleController.text.trim(),
+          description: _descriptionController.text.trim(),
+          dueDate: _selectedDate,
+          priority: _selectedPriority,
+        ),
+      );
     }
   }
-
 
   void _toggleTask(Task task, bool? value) {
     context.read<TaskProvider>().toggleTask(task.id, value ?? false);
@@ -231,27 +233,23 @@ Future<void> _showEditTaskDialog(Task task) async {
           }
           if (a.dueDate == null) return 1;
           if (b.dueDate == null) return -1;
-
           return a.dueDate!.compareTo(b.dueDate!);
         });
-
       case _TaskSort.priority:
         const priorityOrder = {
           TaskPriority.high: 0,
           TaskPriority.medium: 1,
           TaskPriority.low: 2,
         };
-
-        filteredTasks.sort((a, b) {
-          return priorityOrder[a.priority]!.compareTo(
+        filteredTasks.sort(
+          (a, b) => priorityOrder[a.priority]!.compareTo(
             priorityOrder[b.priority]!,
-          );
-        });
-
+          ),
+        );
       case _TaskSort.title:
-        filteredTasks.sort((a, b) {
-          return a.title.toLowerCase().compareTo(b.title.toLowerCase());
-        });
+        filteredTasks.sort(
+          (a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()),
+        );
     }
 
     return filteredTasks;
@@ -290,14 +288,26 @@ Future<void> _showEditTaskDialog(Task task) async {
                   children: [
                     Text(
                       '$completed of $total tasks completed',
-                      style: Theme.of(context).textTheme.titleMedium
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleMedium
                           ?.copyWith(fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 12),
-                    LinearProgressIndicator(
-                      value: taskProvider.completionProgress,
-                      minHeight: 8,
-                      borderRadius: BorderRadius.circular(8),
+                    TweenAnimationBuilder<double>(
+                      tween: Tween<double>(
+                        begin: 0,
+                        end: taskProvider.completionProgress,
+                      ),
+                      duration: const Duration(milliseconds: 500),
+                      curve: Curves.easeInOut,
+                      builder: (context, value, child) {
+                        return LinearProgressIndicator(
+                          value: value,
+                          minHeight: 8,
+                          borderRadius: BorderRadius.circular(8),
+                        );
+                      },
                     ),
                   ],
                 ),
@@ -396,13 +406,11 @@ Future<void> _showEditTaskDialog(Task task) async {
               ],
             ),
             const SizedBox(height: 12),
-
             Text(
               '${tasks.length} ${tasks.length == 1 ? 'task' : 'tasks'} shown',
               style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 8),
-
             Expanded(
               child: allTasks.isEmpty
                   ? const Center(
@@ -424,61 +432,79 @@ Future<void> _showEditTaskDialog(Task task) async {
                       ),
                     )
                   : tasks.isEmpty
-                  ? const Center(child: Text('No tasks match this filter.'))
+                  ? const Center(
+                      child: Text('No tasks match this filter.'),
+                    )
                   : ListView.builder(
                       itemCount: tasks.length,
                       itemBuilder: (context, index) {
                         final task = tasks[index];
 
-                        return Card(
-                          margin: const EdgeInsets.only(bottom: 10),
-                          child: ListTile(
-                            leading: Checkbox(
-                              value: task.isCompleted,
-                              onChanged: (value) => _toggleTask(task, value),
-                            ),
-                            title: Text(
-                              task.title,
-                              style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                                decoration: task.isCompleted
-                                    ? TextDecoration.lineThrough
-                                    : null,
+                        return TweenAnimationBuilder<double>(
+                          key: ValueKey(task.id),
+                          tween: Tween<double>(begin: 0, end: 1),
+                          duration: Duration(
+                            milliseconds: 400 + (index * 50),
+                          ),
+                          curve: Curves.easeOut,
+                          builder: (context, value, child) {
+                            return Opacity(
+                              opacity: value,
+                              child: Transform.translate(
+                                offset: Offset(0, 16 * (1 - value)),
+                                child: child,
+                              ),
+                            );
+                          },
+                          child: Card(
+                            margin: const EdgeInsets.only(bottom: 10),
+                            child: ListTile(
+                              leading: Checkbox(
+                                value: task.isCompleted,
+                                onChanged: (value) => _toggleTask(task, value),
+                              ),
+                              title: Text(
+                                task.title,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  decoration: task.isCompleted
+                                      ? TextDecoration.lineThrough
+                                      : null,
+                                ),
+                              ),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if (task.description.isNotEmpty)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 4),
+                                      child: Text(task.description),
+                                    ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '${_priorityLabel(task.priority)} priority'
+                                    '${task.dueDate == null ? '' : ' • Due ${_formatDate(task.dueDate!)}'}',
+                                  ),
+                                ],
+                              ),
+                              isThreeLine: task.description.isNotEmpty,
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    tooltip: 'Edit task',
+                                    icon: const Icon(Icons.edit_outlined),
+                                    onPressed: () =>
+                                        _showEditTaskDialog(task),
+                                  ),
+                                  IconButton(
+                                    tooltip: 'Delete task',
+                                    icon: const Icon(Icons.delete_outline),
+                                    onPressed: () => _deleteTask(task),
+                                  ),
+                                ],
                               ),
                             ),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                if (task.description.isNotEmpty)
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 4),
-                                    child: Text(task.description),
-                                  ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  '${_priorityLabel(task.priority)} priority'
-                                  '${task.dueDate == null ? '' : ' • Due ${_formatDate(task.dueDate!)}'}',
-                                ),
-                              ],
-                            ),
-                            isThreeLine: task.description.isNotEmpty,
-                            
-trailing: Row(
-  mainAxisSize: MainAxisSize.min,
-  children: [
-    IconButton(
-      tooltip: 'Edit task',
-      icon: const Icon(Icons.edit_outlined),
-      onPressed: () => _showEditTaskDialog(task),
-    ),
-    IconButton(
-      tooltip: 'Delete task',
-      icon: const Icon(Icons.delete_outline),
-      onPressed: () => _deleteTask(task),
-    ),
-  ],
-),
-
                           ),
                         );
                       },
@@ -506,3 +532,4 @@ trailing: Row(
         '${date.month.toString().padLeft(2, '0')}/${date.year}';
   }
 }
+  

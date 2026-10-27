@@ -4,6 +4,10 @@ import 'package:provider/provider.dart';
 import 'providers/task_provider.dart';
 import 'providers/study_session_provider.dart';
 import 'screens/main_navigation_screen.dart';
+import 'screens/dashboard_screen.dart';
+import 'screens/tasks_screen.dart';
+import 'screens/study_planner_screen.dart';
+import 'screens/insights_screen.dart';
 
 void main() {
   runApp(
@@ -72,7 +76,14 @@ class StudentProductivityPlanner extends StatelessWidget {
                 ),
               ),
             ),
-            home: const MainNavigationScreen(),
+            initialRoute: '/',
+            routes: {
+              '/': (context) => const MainNavigationScreen(),
+              '/dashboard': (context) => const DashboardScreen(),
+              '/tasks': (context) => const TasksScreen(),
+              '/study': (context) => const StudyPlannerScreen(),
+              '/insights': (context) => const InsightsScreen(),
+            },
           ),
         );
       },
