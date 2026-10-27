@@ -59,6 +59,15 @@ class TaskProvider extends ChangeNotifier {
     notifyListeners();
     _saveTasks();
   }
+  
+  void updateTask(Task updatedTask) {
+    final index = _tasks.indexWhere((task) => task.id == updatedTask.id);
+    if (index == -1) return;
+
+    _tasks[index] = updatedTask;
+    notifyListeners();
+    _saveTasks();
+  }
 
   void toggleTask(String id, bool isCompleted) {
     final index = _tasks.indexWhere((task) => task.id == id);

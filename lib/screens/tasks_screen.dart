@@ -32,11 +32,23 @@ class _TasksScreenState extends State<TasksScreen> {
     super.dispose();
   }
 
-  Future<void> _showAddTaskDialog() async {
-    _titleController.clear();
-    _descriptionController.clear();
-    _selectedPriority = TaskPriority.medium;
-    _selectedDate = null;
+  
+  Future<void> _showAddTaskDialog() => _showTaskDialog();
+
+  
+Future<void> _showEditTaskDialog(Task task) async {
+  await _showTaskDialog(task: task);
+}
+
+
+  Future<void> _showTaskDialog({Task? task}) async {
+    final isEditing = task != null;
+    final formKey = GlobalKey<FormState>();
+
+    _titleController.text = task?.title ?? '';
+    _descriptionController.text = task?.description ?? '';
+    _selectedPriority = task?.priority ?? TaskPriority.medium;
+    _selectedDate = task?.dueDate;
 
     final result = await showDialog<bool>(
       context: context,
@@ -44,76 +56,98 @@ class _TasksScreenState extends State<TasksScreen> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              title: const Text('Add New Task'),
+              title: Text(isEditing ? 'Edit Task' : 'Add New Task'),
               content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextField(
-                      controller: _titleController,
-                      autofocus: true,
-                      decoration: const InputDecoration(
-                        labelText: 'Task title',
-                        hintText: 'e.g. Complete DSA assignment',
-                        border: OutlineInputBorder(),
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextFormField(
+                        controller: _titleController,
+                        autofocus: true,
+                        decoration: const InputDecoration(
+                          labelText: 'Task title',
+                          hintText: 'e.g. Complete DSA assignment',
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Please enter a task title.';
+                          }
+                          return null;
+                        },
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: _descriptionController,
-                      maxLines: 2,
-                      decoration: const InputDecoration(
-                        labelText: 'Description (optional)',
-                        border: OutlineInputBorder(),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _descriptionController,
+                        maxLines: 2,
+                        decoration: const InputDecoration(
+                          labelText: 'Description (optional)',
+                          border: OutlineInputBorder(),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    DropdownButtonFormField<TaskPriority>(
-                      initialValue: _selectedPriority,
-                      decoration: const InputDecoration(
-                        labelText: 'Priority',
-                        border: OutlineInputBorder(),
+                      const SizedBox(height: 16),
+                      DropdownButtonFormField<TaskPriority>(
+                        initialValue: _selectedPriority,
+                        decoration: const InputDecoration(
+                          labelText: 'Priority',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: TaskPriority.values.map((priority) {
+                          return DropdownMenuItem<TaskPriority>(
+                            value: priority,
+                            child: Text(_priorityLabel(priority)),
+                          );
+                        }).toList(),
+                        onChanged: (priority) {
+                          if (priority != null) {
+                            setDialogState(() {
+                              _selectedPriority = priority;
+                            });
+                          }
+                        },
                       ),
-                      items: TaskPriority.values.map((priority) {
-                        return DropdownMenuItem<TaskPriority>(
-                          value: priority,
-                          child: Text(_priorityLabel(priority)),
-                        );
-                      }).toList(),
-                      onChanged: (priority) {
-                        if (priority != null) {
-                          setDialogState(() {
-                            _selectedPriority = priority;
-                          });
-                        }
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    OutlinedButton.icon(
-                      onPressed: () async {
-                        final now = DateTime.now();
+                      const SizedBox(height: 12),
+                      OutlinedButton.icon(
+                        onPressed: () async {
+                          final now = DateTime.now();
+                          final date = await showDatePicker(
+                            context: dialogContext,
+                            initialDate: _selectedDate != null &&
+                                    _selectedDate!.isBefore(
+                                      DateTime(now.year, now.month, now.day),
+                                    )
+                                ? DateTime(now.year, now.month, now.day)
+                                : _selectedDate ?? now,
+                            firstDate: DateTime(now.year, now.month, now.day),
+                            lastDate: DateTime(now.year + 10, now.month, now.day),
+                          );
 
-                        final date = await showDatePicker(
-                          context: context,
-                          initialDate: _selectedDate ?? now,
-                          firstDate: DateTime(now.year, now.month, now.day),
-                          lastDate: now.add(const Duration(days: 3650)),
-                        );
-
-                        if (date != null) {
-                          setDialogState(() {
-                            _selectedDate = date;
-                          });
-                        }
-                      },
-                      icon: const Icon(Icons.calendar_month),
-                      label: Text(
-                        _selectedDate == null
-                            ? 'Choose due date'
-                            : 'Due: ${_formatDate(_selectedDate!)}',
+                          if (date != null) {
+                            setDialogState(() {
+                              _selectedDate = date;
+                            });
+                          }
+                        },
+                        icon: const Icon(Icons.calendar_month),
+                        label: Text(
+                          _selectedDate == null
+                              ? 'Choose due date'
+                              : 'Due: ${_formatDate(_selectedDate!)}',
+                        ),
                       ),
-                    ),
-                  ],
+                      if (_selectedDate != null)
+                        TextButton(
+                          onPressed: () {
+                            setDialogState(() {
+                              _selectedDate = null;
+                            });
+                          },
+                          child: const Text('Remove due date'),
+                        ),
+                    ],
+                  ),
                 ),
               ),
               actions: [
@@ -123,18 +157,11 @@ class _TasksScreenState extends State<TasksScreen> {
                 ),
                 FilledButton(
                   onPressed: () {
-                    if (_titleController.text.trim().isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Please enter a task title.'),
-                        ),
-                      );
-                      return;
+                    if (formKey.currentState!.validate()) {
+                      Navigator.pop(dialogContext, true);
                     }
-
-                    Navigator.pop(dialogContext, true);
                   },
-                  child: const Text('Add Task'),
+                  child: Text(isEditing ? 'Save Changes' : 'Add Task'),
                 ),
               ],
             );
@@ -145,16 +172,30 @@ class _TasksScreenState extends State<TasksScreen> {
 
     if (result != true || !mounted) return;
 
-    final task = Task(
-      id: DateTime.now().microsecondsSinceEpoch.toString(),
-      title: _titleController.text.trim(),
-      description: _descriptionController.text.trim(),
-      dueDate: _selectedDate,
-      priority: _selectedPriority,
-    );
-
-    context.read<TaskProvider>().addTask(task);
+    if (isEditing) {
+      context.read<TaskProvider>().updateTask(
+            Task(
+              id: task.id,
+              title: _titleController.text.trim(),
+              description: _descriptionController.text.trim(),
+              dueDate: _selectedDate,
+              priority: _selectedPriority,
+              isCompleted: task.isCompleted,
+            ),
+          );
+    } else {
+      context.read<TaskProvider>().addTask(
+            Task(
+              id: DateTime.now().microsecondsSinceEpoch.toString(),
+              title: _titleController.text.trim(),
+              description: _descriptionController.text.trim(),
+              dueDate: _selectedDate,
+              priority: _selectedPriority,
+            ),
+          );
+    }
   }
+
 
   void _toggleTask(Task task, bool? value) {
     context.read<TaskProvider>().toggleTask(task.id, value ?? false);
@@ -421,11 +462,23 @@ class _TasksScreenState extends State<TasksScreen> {
                               ],
                             ),
                             isThreeLine: task.description.isNotEmpty,
-                            trailing: IconButton(
-                              tooltip: 'Delete task',
-                              icon: const Icon(Icons.delete_outline),
-                              onPressed: () => _deleteTask(task),
-                            ),
+                            
+trailing: Row(
+  mainAxisSize: MainAxisSize.min,
+  children: [
+    IconButton(
+      tooltip: 'Edit task',
+      icon: const Icon(Icons.edit_outlined),
+      onPressed: () => _showEditTaskDialog(task),
+    ),
+    IconButton(
+      tooltip: 'Delete task',
+      icon: const Icon(Icons.delete_outline),
+      onPressed: () => _deleteTask(task),
+    ),
+  ],
+),
+
                           ),
                         );
                       },
