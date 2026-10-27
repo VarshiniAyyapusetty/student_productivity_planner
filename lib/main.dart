@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'providers/task_provider.dart';
+import 'providers/study_session_provider.dart';
 import 'screens/main_navigation_screen.dart';
 
 void main() {
@@ -13,8 +14,13 @@ class StudentProductivityPlanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => TaskProvider()..loadTasks(),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => TaskProvider()..loadTasks()),
+        ChangeNotifierProvider(
+          create: (_) => StudySessionProvider()..loadSessions(),
+        ),
+      ],
       child: MaterialApp(
         title: 'Student Productivity Planner',
         debugShowCheckedModeBanner: false,

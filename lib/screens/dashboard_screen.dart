@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/task_provider.dart';
+import '../providers/study_session_provider.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -9,9 +10,13 @@ class DashboardScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final taskProvider = context.watch<TaskProvider>();
+    final studyProvider = context.watch<StudySessionProvider>();
+
     final tasks = taskProvider.tasks;
+    final todaySessions = studyProvider.todaySessions;
     final completedTasks = taskProvider.completedTasks;
     final totalTasks = taskProvider.totalTasks;
+    final todayMinutes = studyProvider.todayMinutes;
 
     final theme = Theme.of(context);
 
@@ -82,7 +87,7 @@ class DashboardScreen extends StatelessWidget {
                   child: _buildStatCard(
                     context,
                     'Study Hours',
-                    '0 h',
+                    '${todayMinutes ~/ 60}h ${todayMinutes % 60}m',
                     Icons.timer_outlined,
                     Colors.orange,
                   ),
@@ -106,9 +111,9 @@ class DashboardScreen extends StatelessWidget {
                 Expanded(
                   child: _buildStatCard(
                     context,
-                    'Streak',
-                    '0 days',
-                    Icons.local_fire_department_outlined,
+                    'Study Sessions',
+                    todaySessions.length.toString(),
+                    Icons.menu_book_outlined,
                     Colors.deepPurple,
                   ),
                 ),
@@ -186,6 +191,56 @@ class DashboardScreen extends StatelessWidget {
                               : task.dueDate == null
                               ? 'Pending'
                               : 'Due ${_formatDate(task.dueDate!)}',
+                        ),
+                      ),
+                    ),
+                  ),
+
+            const SizedBox(height: 28),
+            Text(
+              "Today's Study Sessions",
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            if (studyProvider.isLoading)
+              const Center(child: CircularProgressIndicator())
+            else if (todaySessions.isEmpty)
+              const Card(
+                child: Padding(
+                  padding: EdgeInsets.all(20),
+                  child: Row(
+                    children: [
+                      Icon(Icons.menu_book_outlined, size: 30),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: Text('No study sessions planned for today.'),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else
+              ...todaySessions
+                  .take(3)
+                  .map(
+                    (session) => Card(
+                      margin: const EdgeInsets.only(bottom: 10),
+                      child: ListTile(
+                        leading: const CircleAvatar(
+                          child: Icon(Icons.menu_book_outlined),
+                        ),
+                        title: Text(
+                          session.subject,
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        subtitle: Text(
+                          session.goal.isEmpty
+                              ? '${session.durationMinutes} minutes'
+                              : '${session.durationMinutes} minutes • '
+                                    '${session.goal}',
                         ),
                       ),
                     ),
